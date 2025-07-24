@@ -1,0 +1,493 @@
+type: collection.insomnia.rest/5.0
+name: rinha
+meta:
+  id: wrk_9c355f34f83e438da81e99a09d3e097b
+  created: 1751060773706
+  modified: 1753397774111
+collection:
+  - name: Rinha
+    meta:
+      id: fld_044a7bf37c034978a0f45819a0110d48
+      created: 1751846124738
+      modified: 1751846124738
+      sortKey: -1751846124738
+    children:
+      - name: GO
+        meta:
+          id: fld_172ecaf16a334e73a645d4f6c4645f01
+          created: 1752799674533
+          modified: 1752799674533
+          sortKey: -1752799674533
+        children:
+          - url: localhost:9999/payments-summary?from=2020-07-10T12:34:56.000Z&to=2026-07-22T12:35:56.000Z
+            name: Summary
+            meta:
+              id: req_a31257ee6e7b4bcea83d53422d3b267a
+              created: 1752719421645
+              modified: 1753068523336
+              isPrivate: false
+              sortKey: -1752799677970
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.1.0
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:9999/payments
+            name: PaymentsGO
+            meta:
+              id: req_cdeb4957310a4b5895fd4e0979bb9500
+              created: 1752799693591
+              modified: 1752941144485
+              isPrivate: false
+              sortKey: -1752799678070
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                	"correlationId": "{% faker 'randomUUID' %}",
+                	"amount": 19.90
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.1.0
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:9999/purge-payments
+            name: PurgePaymentsGo
+            meta:
+              id: req_375a27559a7f4bb0966e2909510fd746
+              created: 1752804334397
+              modified: 1752804768171
+              isPrivate: false
+              sortKey: -1752799678020
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.1.0
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Spring
+        meta:
+          id: fld_bb867da33fc141c4b937c18b55367fde
+          created: 1752799703589
+          modified: 1752799703589
+          sortKey: -1752799703589
+        children:
+          - url: http://localhost:9999/payments
+            name: Payments
+            meta:
+              id: req_b99a419868904438928f7a0517cd9aa3
+              created: 1751846127683
+              modified: 1752799731365
+              isPrivate: false
+              sortKey: -1752799728115
+            method: POST
+            body:
+              mimeType: application/json
+              text: |-
+                {
+                	"correlationId": "02ef22a9-9f88-4a69-b7cf-bd29d708dc2b",
+                	"amount": 19.90
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.1.0
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:9999/payments-summary
+            name: summary
+            meta:
+              id: req_210a03fafce84e9ca5ca641803bddae5
+              created: 1751857612611
+              modified: 1752799732846
+              isPrivate: false
+              sortKey: -1752799728215
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.1.0
+                id: pair_fa94ef05e34c46e0bb268486272b3933
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:9999/purge-payments
+            name: purgePaymentsSpring
+            meta:
+              id: req_2c9d5b6d1f9e4f49b187ebd44d608302
+              created: 1752017664783
+              modified: 1752799728096
+              isPrivate: false
+              sortKey: -1752799728015
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.1.0
+                id: pair_502c58d1990341b6ada243328999e29a
+              - id: pair_e7c3eb703e41444f97f429fb76cd3710
+                name: X-Rinha-Token
+                value: "123"
+                disabled: false
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - url: localhost:8001/payments/service-health
+        name: get-health1
+        meta:
+          id: req_6d541758c1bd46379371c5a0683fa38f
+          created: 1751848507096
+          modified: 1752799782767
+          isPrivate: false
+          sortKey: -1751848507096
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8001/admin/payments-summary
+        name: summary1
+        meta:
+          id: req_fd811b6d5bfc42b085abcbbc06bb73c8
+          created: 1752014372478
+          modified: 1752103630942
+          isPrivate: false
+          sortKey: -1752014372478
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8001/admin/configurations/failure
+        name: failure1
+        meta:
+          id: req_532af2c3f4db4727b72cfbfdc9414ab1
+          created: 1752014701780
+          modified: 1752990981795
+          isPrivate: false
+          sortKey: -1751931439787
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+                "failure" : false
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+            id: pair_1006b363ebb848f7adb646be2abaab2c
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8002/admin/purge-payments
+        name: purgePayments2
+        meta:
+          id: req_e1c565adf74f4cc3a3830877fd377ec8
+          created: 1752015784432
+          modified: 1752799754841
+          isPrivate: false
+          sortKey: -1751972906132.5
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8001/admin/purge-payments
+        name: purgePayments1
+        meta:
+          id: req_fa332efa3ba440c39803a6e4d37df8e0
+          created: 1752095294318
+          modified: 1752799756590
+          isPrivate: false
+          sortKey: -1751983272718.875
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8002/admin/payments-summary
+        name: summary2
+        meta:
+          id: req_c6160a404e3047ed842aa2378d4ff3ca
+          created: 1752103636086
+          modified: 1752103637214
+          isPrivate: false
+          sortKey: -1751993639305.25
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8002/payments/service-health
+        name: get-health2
+        meta:
+          id: req_e13b0630efdd45539acf7914102e87bf
+          created: 1752799777353
+          modified: 1752799779277
+          isPrivate: false
+          sortKey: -1751531636505.5
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.1.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8002/admin/configurations/failure
+        name: failure2
+        meta:
+          id: req_8e79ec3ad2cd4350a54eeb242a624eca
+          created: 1752799787189
+          modified: 1752956970241
+          isPrivate: false
+          sortKey: -1751889973441.5
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+                "failure" : false
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+            id: pair_1006b363ebb848f7adb646be2abaab2c
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8001/admin/configurations/delay
+        name: delay1
+        meta:
+          id: req_662729cb39214619a5f555819201b5df
+          created: 1752981378619
+          modified: 1753032260979
+          isPrivate: false
+          sortKey: -1751910706614.25
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+                "delay" : 5000
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+            id: pair_1006b363ebb848f7adb646be2abaab2c
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8002/admin/configurations/delay
+        name: delay2
+        meta:
+          id: req_c59a302fe40e491a920911c2f0e6a2f5
+          created: 1752981401585
+          modified: 1752981403460
+          isPrivate: false
+          sortKey: -1751900340027.875
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+                "delay" : 0
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+            id: pair_1006b363ebb848f7adb646be2abaab2c
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+          - id: pair_e7c3eb703e41444f97f429fb76cd3710
+            name: X-Rinha-Token
+            value: "123"
+            disabled: false
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: localhost:8001/payments
+        name: payments1
+        meta:
+          id: req_054d7befeb2e4befbd6bf77168058efc
+          created: 1752986209890
+          modified: 1752986299558
+          isPrivate: false
+          sortKey: -1752407023505.5
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"correlationId": "{% faker 'randomUUID' %}",
+            	"amount": 19.90,
+            	"requestedAt": "{% faker 'isoTimestamp' %}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+            id: pair_12fc77cb7d99450abd493c654c7edb0d
+          - name: User-Agent
+            value: insomnia/11.1.0
+            id: pair_502c58d1990341b6ada243328999e29a
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_91aa18bf290144c93af5578e14385f9c5c00f3d8
+    created: 1751060773711
+    modified: 1751060773711
+environments:
+  name: Base Environment
+  meta:
+    id: env_91aa18bf290144c93af5578e14385f9c5c00f3d8
+    created: 1751060773709
+    modified: 1751060773709
+    isPrivate: false
