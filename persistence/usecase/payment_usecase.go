@@ -3,6 +3,7 @@
 package usecase
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"payment-persistence/model"
@@ -12,15 +13,19 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const (
+	SubjectNamePersistence = "PERSISTENCE.payment"
+)
+
 type PaymentUsecase struct {
-	Repo *repository.MemoryPaymentRepository
-	Nats nats.JetStreamContext
+	Repo   *repository.MemoryPaymentRepository
+	natsJS nats.JetStreamContext
 }
 
 func NewPaymentUsecase(repo *repository.MemoryPaymentRepository, natsJS nats.JetStreamContext) *PaymentUsecase {
 	return &PaymentUsecase{
-		Repo: repo,
-		Nats: natsJS,
+		Repo:   repo,
+		natsJS: natsJS,
 	}
 }
 
@@ -28,8 +33,8 @@ func round2(val float64) float64 {
 	return math.Round(val*100) / 100
 }
 
-func (u *PaymentUsecase) GetPaymentsSummary(from, to *time.Time) (model.Summary, error) {
-	all := u.Repo.GetAll()
+func (p *PaymentUsecase) GetPaymentsSummary(from, to *time.Time) (model.Summary, error) {
+	all := p.Repo.GetAll()
 	var defaultCount, fallbackCount int64
 	var defaultAmount, fallbackAmount float64
 
@@ -58,84 +63,36 @@ func (u *PaymentUsecase) GetPaymentsSummary(from, to *time.Time) (model.Summary,
 	}, nil
 }
 
-func (u *PaymentUsecase) PurgeAll() error {
-	u.Repo.Purge()
-
-	if err := u.Nats.PurgeStream("PAYMENTS_STREAM"); err != nil && err != nats.ErrStreamNotFound {
-		return err
-	}
-	if err := u.Nats.PurgeStream("PAYMENTS_TO_PERSIST"); err != nil && err != nats.ErrStreamNotFound {
-		return err
-	}
+func (p *PaymentUsecase) PurgeAll() error {
+	p.Repo.Purge()
 
 	return nil
 }
 
-func (u *PaymentUsecase) StartPersistenceWorkers(numWorkers int) {
-	sub, err := u.Nats.PullSubscribe("persist", "worker-1", nats.BindStream("WORKERS_STREAM"))
+func (p *PaymentUsecase) StartWorkerPool(numWorkers int) {
+	jobs := make(chan *nats.Msg, 1000)
+
+	for workerId := 0; workerId < numWorkers; workerId++ {
+		go func(workerId int) {
+			for msg := range jobs {
+				var payment model.Payment
+				err := json.Unmarshal(msg.Data, &payment)
+				if err != nil {
+					log.Printf("[worker %d] erro no Unmarshal: %v", workerId, err)
+					_ = msg.Ack()
+					continue
+				}
+				_ = p.Repo.Save(&payment)
+				_ = msg.Ack()
+			}
+		}(workerId)
+	}
+
+	_, err := p.natsJS.Subscribe(SubjectNamePersistence, func(m *nats.Msg) {
+		jobs <- m
+	}, nats.Durable("payments-worker"), nats.ManualAck())
+
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Subscribe failed:", err)
 	}
-
-	log.Printf("foi2")
-
-	for {
-		// Puxa até 1 mensagem, espera até 1s se não chegar nada
-		msgs, err := sub.Fetch(1, nats.MaxWait(1*time.Second))
-		if err != nil && err != nats.ErrTimeout {
-			log.Println("Erro:", err)
-			continue
-		}
-		for _, msg := range msgs {
-			log.Println("Recebido:", string(msg.Data))
-			msg.Ack() // Confirma o processamento
-		}
-	}
-
-	// const consumerName = "payments_to_persist"
-
-	// sub, err := u.Nats.PullSubscribe(
-	// 	"PAYMENTS_TO_PERSIST",
-	// 	consumerName,
-	// 	nats.BindStream("PAYMENTS_TO_PERSIST"),
-	// )
-	// if err != nil {
-	// 	log.Fatalf("Erro ao criar PullSubscribe NATS: %v", err)
-	// }
-
-	// jobs := make(chan *nats.Msg, 1000)
-
-	// // Workers (goroutines)
-	// for range numWorkers {
-	// 	go func() {
-	// 		for msg := range jobs {
-	// 			var payment model.Payment
-	// 			if err := json.Unmarshal(msg.Data, &payment); err != nil {
-	// 				msg.Ack()
-	// 				continue
-	// 			}
-	// 			_ = u.Repo.Save(&payment)
-	// 			msg.Ack()
-	// 		}
-	// 	}()
-	// }
-
-	// // Loop central faz fetch e despacha para o pool
-	// go func() {
-	// 	for {
-	// 		msgs, err := sub.Fetch(10, nats.MaxWait(1*time.Second))
-	// 		print("%s", msgs)
-	// 		if err != nil {
-	// 			if err == nats.ErrTimeout {
-	// 				continue
-	// 			}
-	// 			time.Sleep(50 * time.Millisecond)
-	// 			continue
-	// 		}
-	// 		for _, msg := range msgs {
-	// 			log.Printf("[PERSIST WORKER] Nova mensagem lida da fila: %s", string(msg.Data))
-	// 			jobs <- msg
-	// 		}
-	// 	}
-	// }()
 }

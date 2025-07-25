@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	config.InitNATS()
+	nats := config.JetStreamInit()
 
-	paymentUsecase := usecase.NewPaymentUsecase(config.NatsJS)
+	paymentUsecase := usecase.NewPaymentUsecase(nats)
 
 	numWorkers, _ := strconv.Atoi(os.Getenv("NUM_WORKERS"))
 	paymentUsecase.StartWorkerPool(context.Background(), numWorkers)

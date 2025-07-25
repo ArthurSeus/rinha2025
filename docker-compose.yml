@@ -21,31 +21,31 @@ services:
     networks:
       - backend
       - payment-processor
-    ports:
-      - "9999:8000"
+    # ports:
+    #   - "9999:8000"
 
-  # payment-api-2:
-  #   build:
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   ulimits:
-  #     nofile:
-  #       soft: 65535
-  #       hard: 65535
-  #   container_name: payment-api-2
-  #   depends_on:
-  #     - nats
-  #   environment:
-  #     NATS_URL: nats://nats:4222
-  #     GOGC: 200
-  #   # deploy:
-  #   #   resources:
-  #   #     limits:
-  #   #       cpus: "0.2"
-  #   #       memory: "25MB"
-  #   networks:
-  #     - backend
-  #     - payment-processor
+  payment-api-2:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    container_name: payment-api-2
+    depends_on:
+      - nats
+    environment:
+      NATS_URL: nats://nats:4222
+      GOGC: 200
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "0.2"
+    #       memory: "25MB"
+    networks:
+      - backend
+      - payment-processor
 
   payment-worker-1:
     build:
@@ -106,32 +106,32 @@ services:
       - payment-processor
   
 
-  # haproxy:
-  #   image: haproxy:2.9-alpine
-  #   container_name: haproxy
-  #   volumes:
-  #     - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-  #   ports:
-  #     - "9999:8080"
-  #   # deploy:
-  #   #   resources:
-  #   #     limits:
-  #   #       cpus: "0.3"
-  #   #       memory: "30MB"
-  #   depends_on:
-  #     - payment-api-1
-  #     - payment-api-2
-  #     - payment-persistence
-  #   networks:
-  #     - backend
-  #     - payment-processor
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: haproxy
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "9999:8080"
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "0.3"
+    #       memory: "30MB"
+    depends_on:
+      - payment-api-1
+      - payment-api-2
+      - payment-persistence
+    networks:
+      - backend
+      - payment-processor
 
   nats:
     image: nats:2.10-alpine
     container_name: nats
     ports:
       - "4222:4222"
-      - "8222:8222"
+      # - "8222:8222"
     command: ["-js", "-m", "8222"]
     # deploy:
     #   resources:

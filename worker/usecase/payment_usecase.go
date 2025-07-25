@@ -14,6 +14,11 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const (
+	SubjectNamePayment     = "PAYMENTS.payment"
+	SubjectNamePersistence = "PERSISTENCE.payment"
+)
+
 type WorkerJob struct {
 	Msg         *nats.Msg
 	IsBenchmark bool
@@ -44,105 +49,80 @@ func NewPaymentUsecase(natsJS nats.JetStreamContext) *PaymentUsecase {
 }
 
 func (p *PaymentUsecase) StartWorkerPool(ctx context.Context, numWorkers int) {
-	// // Deleta consumer antigo se existir (ok para dev/homolog)
-	// _ = p.natsJS.DeleteConsumer("PAYMENTS_STREAM", consumerName)
+	jobs := make(chan *nats.Msg, 1000)
 
-	// // Cria o consumer explicitamente
-	// _, err := p.natsJS.AddConsumer("PAYMENTS_STREAM", &nats.ConsumerConfig{
-	// 	Durable:       consumerName,
-	// 	AckPolicy:     nats.AckExplicitPolicy,
-	// 	FilterSubject: "payments_to_send",
-	// })
-	// if err != nil && !strings.Contains(err.Error(), "consumer already exists") {
-	// 	panic(fmt.Sprintf("Erro ao criar AddConsumer: %v", err))
-	// }
-
-	// Agora faz bind (não tenta criar de novo)
-	sub, err := p.natsJS.PullSubscribe("jobs", "worker-1", nats.BindStream("WORKERS_STREAM"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("foi")
-
-	// for {
-	// 	// Puxa até 1 mensagem, espera até 1s se não chegar nada
-	// 	msgs, err := sub.Fetch(1, nats.MaxWait(1*time.Second))
-	// 	if err != nil && err != nats.ErrTimeout {
-	// 		log.Println("Erro:", err)
-	// 		continue
-	// 	}
-	// 	for _, msg := range msgs {
-	// 		log.Println("Recebido:", string(msg.Data))
-	// 		msg.Ack() // Confirma o processamento
-	// 	}
-	// }
-
-	jobs := make(chan WorkerJob, 1000)
-
-	for i := 0; i < numWorkers; i++ {
+	for workerId := 0; workerId < numWorkers; workerId++ {
 		go func(workerId int) {
-			for job := range jobs {
+			for msg := range jobs {
 				var payment model.PaymentRequestTimed
-				if err := json.Unmarshal(job.Msg.Data, &payment); err != nil {
-					job.Msg.Ack()
+				err := json.Unmarshal(msg.Data, &payment)
+				if err != nil {
+					log.Printf("[worker %d] erro no Unmarshal: %v", workerId, err)
+					_ = p.publishNATS(msg.Data)
+					_ = msg.Ack()
 					continue
 				}
 
-				if job.IsBenchmark {
-					start := time.Now()
-					err := p.tryProcessor(job.Target, payment, job.Msg.Data)
-					duration := time.Since(start)
-
-					p.mu.Lock()
-					status := processorStatus{
-						Failing:    err != nil,
-						RespTime:   duration,
-						LastError:  err,
-						LastUpdate: time.Now(),
+				if workerId < 20 {
+					target := "default"
+					if workerId%2 != 0 {
+						target = "fallback"
 					}
-					if job.Target == "default" {
-						p.defaultStatus = status
-					} else {
-						p.fallbackStatus = status
-					}
-					p.processor = p.calculateProcessor(p.defaultStatus, p.fallbackStatus)
-					p.mu.Unlock()
-
-					job.Msg.Ack()
-				} else {
-					err := p.sendToProcessor(payment, job.Msg.Data)
+					err := p.benchmarkProcessor(target, payment, msg.Data)
 					if err != nil {
-						_ = p.publish(job.Msg.Data)
+						_ = p.publishNATS(msg.Data)
 					}
-					job.Msg.Ack()
+				} else {
+					err := p.sendToProcessor(payment, msg.Data)
+					if err != nil {
+						_ = p.publishNATS(msg.Data)
+					}
 				}
+
+				_ = msg.Ack()
 			}
-		}(i)
+		}(workerId)
 	}
 
-	for {
-		msgs, err := sub.Fetch(numWorkers, nats.MaxWait(1*time.Second))
-		if err != nil {
-			continue
-		}
-		for i, msg := range msgs {
-			log.Printf("[DISPATCHER] Nova mensagem lida da fila: %s", string(msg.Data))
-			if i < 2 {
-				target := "default"
-				if i%2 == 1 {
-					target = "fallback"
-				}
-				jobs <- WorkerJob{Msg: msg, IsBenchmark: true, Target: target}
-			} else {
-				jobs <- WorkerJob{Msg: msg, IsBenchmark: false}
-			}
-		}
+	_, err := p.natsJS.Subscribe(SubjectNamePayment, func(m *nats.Msg) {
+		jobs <- m
+	}, nats.Durable("payments-worker"), nats.ManualAck())
+
+	if err != nil {
+		log.Println("Subscribe failed:", err)
 	}
 }
 
-func (p *PaymentUsecase) publish(body []byte) error {
-	_, err := p.natsJS.Publish("payments_to_send", body)
+func (p *PaymentUsecase) benchmarkProcessor(target string, payment model.PaymentRequestTimed, data []byte) error {
+	start := time.Now()
+	err := p.tryProcessor(target, payment, data)
+	duration := time.Since(start)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	status := processorStatus{
+		Failing:    err != nil,
+		RespTime:   duration,
+		LastError:  err,
+		LastUpdate: time.Now(),
+	}
+	if target == "default" {
+		p.defaultStatus = status
+	} else {
+		p.fallbackStatus = status
+	}
+	p.processor = p.calculateProcessor(p.defaultStatus, p.fallbackStatus)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PaymentUsecase) publishNATS(body []byte) error {
+	_, err := p.natsJS.Publish(SubjectNamePayment, body)
 	return err
 }
 
@@ -192,8 +172,7 @@ func (p *PaymentUsecase) tryProcessor(processor string, payment model.PaymentReq
 		Amount:        payment.Amount,
 		RequestedAt:   payment.RequestedAt,
 	}
-	ctx := context.Background()
-	if err := p.savePayment(ctx, newPayment); err != nil {
+	if err := p.savePayment(newPayment); err != nil {
 		return fmt.Errorf("failed to persist payment in NATS: %w", err)
 	}
 
@@ -214,11 +193,11 @@ func (p *PaymentUsecase) calculateProcessor(defaultStatus, fallbackStatus proces
 	}
 }
 
-func (p *PaymentUsecase) savePayment(ctx context.Context, payment model.Payment) error {
-	data, err := json.Marshal(payment)
-	if err != nil || data == nil {
+func (p *PaymentUsecase) savePayment(payment model.Payment) error {
+	body, err := json.Marshal(payment)
+	if err != nil || body == nil {
 		return fmt.Errorf("failed to marshal payment: %w", err)
 	}
-	_, err = p.natsJS.Publish("persist", data)
+	_, err = p.natsJS.Publish(SubjectNamePersistence, body)
 	return err
 }

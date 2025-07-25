@@ -4,15 +4,15 @@ import (
 	"api/config"
 	"api/usecase"
 	"io"
-	"log"
 	"net/http"
 
 	"golang.org/x/net/http2"
 )
 
 func main() {
-	config.InitNATS()
-	paymentUsecase := usecase.NewPaymentUsecase(config.NatsJS)
+	nats := config.JetStreamInit()
+
+	paymentUsecase := usecase.NewPaymentUsecase(nats)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/payments", func(w http.ResponseWriter, r *http.Request) {
@@ -21,14 +21,12 @@ func main() {
 			return
 		}
 
-		// Leia TODO o body dentro do handler (antes de liberar a resposta)
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 		r.Body.Close()
-		log.Printf("Payments")
 
 		go paymentUsecase.HandlePaymentRequest(bodyBytes)
 		w.WriteHeader(http.StatusAccepted)
@@ -36,7 +34,7 @@ func main() {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		//w.Write([]byte("OK"))
+		w.Write([]byte("OK"))
 	})
 
 	server := &http.Server{

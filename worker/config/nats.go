@@ -8,71 +8,70 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-var natsConn *nats.Conn
-var NatsJS nats.JetStreamContext
+func JetStreamInit() nats.JetStreamContext {
+	const maxRetries = 10
+	const delay = 3 * time.Second
 
-func InitNATS() {
 	url := os.Getenv("NATS_URL")
+	if url == "" {
+		url = nats.DefaultURL // fallback opcional
+	}
+
+	var nc *nats.Conn
+	var js nats.JetStreamContext
 	var err error
-	for i := range 10 {
-		natsConn, err = nats.Connect(url)
+
+	for i := 1; i <= maxRetries; i++ {
+		nc, err = nats.Connect(url)
 		if err == nil {
+			log.Printf("connected to NATS on attempt %d", i)
 			break
 		}
-		log.Printf("Tentativa %d: Erro ao conectar no NATS: %v", i+1, err)
-		time.Sleep(3 * time.Second)
+		log.Printf("attempt %d: failed to connect to NATS: %v", i, err)
+		time.Sleep(delay)
 	}
 	if err != nil {
-		log.Fatalf("Erro ao conectar no NATS: %v", err)
+		log.Fatalf("could not connect to NATS after %d attempts: %v", maxRetries, err)
 	}
-	NatsJS, err = natsConn.JetStream()
+
+	js, err = nc.JetStream(nats.PublishAsyncMaxPending(256))
 	if err != nil {
-		log.Fatalf("Erro ao criar contexto JetStream: %v", err)
+		log.Fatal("failed to create JetStream context:", err)
 	}
+	log.Printf("created JetStream on NATS")
 
-	_, err = NatsJS.AddStream(&nats.StreamConfig{
-		Name:      "WORKERS_STREAM",
-		Subjects:  []string{"jobs"},
-		Retention: nats.WorkQueuePolicy,
-	})
-	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
-		log.Fatal(err)
+	err = CreateStream(js)
+	if err != nil {
+		log.Fatal("failed to create stream:", err)
 	}
+	log.Printf("created stream on NATS")
 
-	_, err = NatsJS.AddStream(&nats.StreamConfig{
-		Name:      "WORKERS_STREAM",
-		Subjects:  []string{"persist"},
-		Retention: nats.WorkQueuePolicy,
-	})
-	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
-		log.Fatal(err)
-	}
-
-	//AddStreamss(NatsJS)
+	return js
 }
 
-// func AddStreamss(js nats.JetStreamContext) {
-// 	// Stream de workers (equivalente a payments_stream)
-// 	_, err := NatsJS.AddStream(&nats.StreamConfig{
-// 		Name:      "PAYMENTS_STREAM",
-// 		Subjects:  []string{"payments"},
-// 		Retention: nats.WorkQueuePolicy, // garante entrega única para consumidores
-// 		//Storage:   nats.FileStorage,     // persiste em disco
-// 		MaxMsgs: -1, // sem limite de mensagens
-// 	})
-// 	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
-// 		log.Fatalf("Erro ao criar stream PAYMENTS_STREAM: %v", err)
-// 	}
+const (
+	StreamName     = "PAYMENTS"
+	StreamSubjects = "PAYMENTS.*"
+)
 
-// 	// Stream de persistence (equivalente a payments_to_persist)
-// 	_, err = NatsJS.AddStream(&nats.StreamConfig{
-// 		Name:      "PAYMENTS_TO_PERSIST",
-// 		Subjects:  []string{"payments_to_persist"},
-// 		Retention: nats.WorkQueuePolicy, // garante entrega única para consumidores
-// 		//Storage:   nats.FileStorage,     // persiste em disco
-// 		MaxMsgs: -1, // sem limite de mensagens
-// 	})
-// 	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
-// 		log.Fatalf("Erro ao criar stream PAYMENTS_TO_PERSIST: %v", err)
-// 	}
-// }
+func CreateStream(jetStream nats.JetStreamContext) error {
+	stream, err := jetStream.StreamInfo(StreamName)
+
+	if err != nil && err != nats.ErrStreamNotFound {
+		return err
+	}
+
+	// stream not found, create it
+	if stream == nil {
+		log.Printf("Creating stream: %s\n", StreamName)
+
+		_, err = jetStream.AddStream(&nats.StreamConfig{
+			Name:     StreamName,
+			Subjects: []string{StreamSubjects},
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

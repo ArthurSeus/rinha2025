@@ -10,6 +10,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const (
+	SubjectNamePayment = "PAYMENTS.payment"
+)
+
 type PaymentUsecase struct {
 	natsJS nats.JetStreamContext
 }
@@ -21,7 +25,6 @@ func NewPaymentUsecase(natsJS nats.JetStreamContext) *PaymentUsecase {
 }
 
 func (p *PaymentUsecase) HandlePaymentRequest(body []byte) {
-	log.Printf("handlePayments")
 	var req model.PaymentRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		log.Printf("Erro ao decodificar: %v", err)
@@ -32,20 +35,17 @@ func (p *PaymentUsecase) HandlePaymentRequest(body []byte) {
 
 func (p *PaymentUsecase) PostPayment(payment model.PaymentRequest) error {
 	amount := decimal.NewFromFloat(payment.Amount)
-	log.Printf("post")
 	paymentTimed := model.PaymentRequestTimed{
 		CorrelationID: payment.CorrelationId,
 		Amount:        amount,
 		RequestedAt:   time.Now().UTC(),
 	}
 
-	log.Printf("json")
 	body, err := json.Marshal(paymentTimed)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("sending to nats")
 	err = p.publishNATS(body)
 	if err != nil {
 		return err
@@ -55,6 +55,6 @@ func (p *PaymentUsecase) PostPayment(payment model.PaymentRequest) error {
 }
 
 func (p *PaymentUsecase) publishNATS(body []byte) error {
-	_, err := p.natsJS.Publish("jobs", body)
+	_, err := p.natsJS.Publish(SubjectNamePayment, body)
 	return err
 }

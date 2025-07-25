@@ -4,23 +4,24 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"payment-persistence/config"
 	"payment-persistence/repository"
 	"payment-persistence/usecase"
+	"strconv"
 	"time"
 
 	"golang.org/x/net/http2"
 )
 
 func main() {
-	config.InitNATS()
+	nats := config.JetStreamInit()
 
 	paymentRepository := repository.NewMemoryPaymentRepository()
-	paymentUsecase := usecase.NewPaymentUsecase(paymentRepository, config.NatsJS)
+	paymentUsecase := usecase.NewPaymentUsecase(paymentRepository, nats)
 
-	// Inicia os workers de persistência (número via env)
-	//numWorkers, _ := strconv.Atoi(os.Getenv("NUM_WORKERS"))
-	//paymentUsecase.StartPersistenceWorkers(numWorkers)
+	numWorkers, _ := strconv.Atoi(os.Getenv("NUM_WORKERS"))
+	paymentUsecase.StartWorkerPool(numWorkers)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/payments-summary", PaymentsSummaryHandler(paymentUsecase))
@@ -67,7 +68,6 @@ func PaymentsSummaryHandler(u *usecase.PaymentUsecase) http.HandlerFunc {
 			http.Error(w, "Failed to get summary", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("SUMMARY: %+v", summary)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(summary)
 	}
