@@ -1,6 +1,8 @@
 services:
   payment-api-1:
-    image: arthurseus/payment-api:1.0.0
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     ulimits:
       nofile:
         soft: 65535
@@ -21,7 +23,9 @@ services:
       - payment-processor
 
   payment-api-2:
-    image: arthurseus/payment-api:1.0.0
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     ulimits:
       nofile:
         soft: 65535
@@ -42,7 +46,9 @@ services:
       - payment-processor
 
   payment-worker:
-    image: arthurseus/payment-worker:1.0.0
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
     container_name: payment-worker
     depends_on:
       - nats
@@ -57,6 +63,25 @@ services:
     networks:
       - backend
       - payment-processor
+
+  # payment-persistence:
+  #   build:
+  #     context: ./persistence
+  #     dockerfile: Dockerfile
+  #   container_name: payment-persistence
+  #   depends_on:
+  #     - nats
+  #   environment:
+  #     NATS_URL: nats://nats:4222
+  #     NUM_WORKERS: 20
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: "0.3"
+  #   #       memory: "40MB"
+  #   networks:
+  #     - backend
+  #     - payment-processor
   
   haproxy:
     image: haproxy:2.9-alpine
@@ -74,6 +99,7 @@ services:
       - payment-api-1
       - payment-api-2
       - payment-worker
+      # - payment-persistence
     networks:
       - backend
       - payment-processor
@@ -83,6 +109,7 @@ services:
     container_name: nats
     ports:
       - "4222:4222"
+      # - "8222:8222"
     command: ["-js", "-m", "8222"]
     deploy:
       resources:
