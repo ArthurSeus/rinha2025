@@ -19,6 +19,17 @@ This repository contains my submission for the Rinha de Backend 2025, implemente
   There is a persistence worker component prepared (not currently active) that can be integrated if database persistence is desired.  
   This worker could asynchronously save processed payments to a database in the background after the main worker processes the request.
 
+## Processor Selection Logic
+
+The worker is able to process payments using two "processors": `default` and `fallback`.  
+The choice of which processor to use is **dynamic** and is made based on the following strategy:
+
+- The worker continuously benchmarks both processors using a portion of the worker pool.
+- It tracks the latest response time and health (success/failure) of each processor.
+- The worker **prefers** to send payments to the fastest healthy processor. If one fails, it automatically switches to the other.
+- This logic is adaptive: if the `default` processor gets slower or starts failing, requests are routed to the `fallback` processor, and vice versa.
+
+
 ## Components
 
 - `payment-api-1` / `payment-api-2`: Go HTTP APIs for requests

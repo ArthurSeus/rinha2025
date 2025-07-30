@@ -191,9 +191,10 @@ func (p *PaymentUsecase) calculateProcessor(defaultStatus, fallbackStatus proces
 		return ""
 	case defaultStatus.Failing:
 		return "fallback"
-	case fallbackStatus.Failing || defaultStatus.RespTime == fallbackStatus.RespTime ||
-		(defaultStatus.RespTime <= 100*time.Millisecond && fallbackStatus.RespTime < defaultStatus.RespTime/3):
+	case fallbackStatus.Failing || defaultStatus.RespTime == fallbackStatus.RespTime:
 		return "default"
+	case defaultStatus.RespTime > 100*time.Millisecond && fallbackStatus.RespTime < defaultStatus.RespTime/3:
+		return "fallback"
 	default:
 		return "default"
 	}
