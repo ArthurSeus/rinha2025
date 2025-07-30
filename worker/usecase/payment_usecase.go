@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"payment-worker/model"
+	"payment-worker/repository"
 	"sync"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 const (
 	SubjectNamePayment     = "PAYMENTS.payment"
 	SubjectNamePersistence = "PERSISTENCE.payment"
+	PaymentStreamName      = "PAYMENTS"
 )
 
 type WorkerJob struct {
@@ -34,24 +37,28 @@ type processorStatus struct {
 
 type PaymentUsecase struct {
 	natsJS nats.JetStreamContext
+	Repo   *repository.MemoryPaymentRepository
 
-	mu             sync.Mutex
-	defaultStatus  processorStatus
-	fallbackStatus processorStatus
-	processor      string
+	mu               sync.Mutex
+	defaultStatus    processorStatus
+	fallbackStatus   processorStatus
+	processor        string
+	benchmarkWorkers int
 }
 
-func NewPaymentUsecase(natsJS nats.JetStreamContext) *PaymentUsecase {
+func NewPaymentUsecase(natsJS nats.JetStreamContext, numWorkers int, repo *repository.MemoryPaymentRepository) *PaymentUsecase {
 	return &PaymentUsecase{
-		natsJS:    natsJS,
-		processor: "default",
+		natsJS:           natsJS,
+		processor:        "default",
+		benchmarkWorkers: numWorkers / 3,
+		Repo:             repo,
 	}
 }
 
 func (p *PaymentUsecase) StartWorkerPool(ctx context.Context, numWorkers int) {
 	jobs := make(chan *nats.Msg, 1000)
 
-	for workerId := 0; workerId < numWorkers; workerId++ {
+	for workerId := range numWorkers {
 		go func(workerId int) {
 			for msg := range jobs {
 				var payment model.PaymentRequestTimed
@@ -63,7 +70,7 @@ func (p *PaymentUsecase) StartWorkerPool(ctx context.Context, numWorkers int) {
 					continue
 				}
 
-				if workerId < 20 {
+				if workerId < p.benchmarkWorkers {
 					target := "default"
 					if workerId%2 != 0 {
 						target = "fallback"
@@ -78,7 +85,6 @@ func (p *PaymentUsecase) StartWorkerPool(ctx context.Context, numWorkers int) {
 						_ = p.publishNATS(msg.Data)
 					}
 				}
-
 				_ = msg.Ack()
 			}
 		}(workerId)
@@ -194,10 +200,57 @@ func (p *PaymentUsecase) calculateProcessor(defaultStatus, fallbackStatus proces
 }
 
 func (p *PaymentUsecase) savePayment(payment model.Payment) error {
-	body, err := json.Marshal(payment)
-	if err != nil || body == nil {
-		return fmt.Errorf("failed to marshal payment: %w", err)
+	_ = p.Repo.Save(&payment)
+	return nil
+	// body, err := json.Marshal(payment)
+	// if err != nil || body == nil {
+	// 	return fmt.Errorf("failed to marshal payment: %w", err)
+	// }
+	// _, err = p.natsJS.Publish(SubjectNamePersistence, body)
+	// return err
+}
+
+func (p *PaymentUsecase) PurgeAll() error {
+	p.Repo.Purge()
+
+	err := p.natsJS.PurgeStream(PaymentStreamName)
+	if err != nil {
+		log.Fatalf("failed to purge stream: %v", err)
 	}
-	_, err = p.natsJS.Publish(SubjectNamePersistence, body)
-	return err
+
+	return nil
+}
+
+func round2(val float64) float64 {
+	return math.Round(val*100) / 100
+}
+
+func (p *PaymentUsecase) GetPaymentsSummary(from, to *time.Time) (model.Summary, error) {
+	all := p.Repo.GetAll()
+	var defaultCount, fallbackCount int64
+	var defaultAmount, fallbackAmount float64
+
+	for _, pay := range all {
+		if (from == nil || !pay.RequestedAt.Before(*from)) && (to == nil || !pay.RequestedAt.After(*to)) {
+			switch pay.Processor {
+			case "default":
+				defaultCount++
+				defaultAmount += pay.Amount.InexactFloat64()
+			case "fallback":
+				fallbackCount++
+				fallbackAmount += pay.Amount.InexactFloat64()
+			}
+		}
+	}
+
+	return model.Summary{
+		DefaultProcessor: model.PaymentSummary{
+			TotalRequests: defaultCount,
+			TotalAmount:   round2(defaultAmount),
+		},
+		FallbackProcessor: model.PaymentSummary{
+			TotalRequests: fallbackCount,
+			TotalAmount:   round2(fallbackAmount),
+		},
+	}, nil
 }

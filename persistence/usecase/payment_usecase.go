@@ -15,6 +15,8 @@ import (
 
 const (
 	SubjectNamePersistence = "PERSISTENCE.payment"
+	PaymentStreamName      = "PAYMENTS"
+	PersistenceStreamName  = "PERSISTENCE"
 )
 
 type PaymentUsecase struct {
@@ -65,6 +67,16 @@ func (p *PaymentUsecase) GetPaymentsSummary(from, to *time.Time) (model.Summary,
 
 func (p *PaymentUsecase) PurgeAll() error {
 	p.Repo.Purge()
+
+	err := p.natsJS.PurgeStream(PaymentStreamName)
+	if err != nil {
+		log.Fatalf("failed to purge stream: %v", err)
+	}
+
+	err = p.natsJS.PurgeStream(PersistenceStreamName)
+	if err != nil {
+		log.Fatalf("failed to purge stream: %v", err)
+	}
 
 	return nil
 }
