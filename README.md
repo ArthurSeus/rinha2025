@@ -31,5 +31,7 @@ This repository contains my submission for the Rinha de Backend 2025, implemente
 
 All components are provided as **public Docker images** and orchestrated via `docker-compose`.
 
+The endpoints will be available at **localhost:9999**
+
 ```sh
 docker-compose up --build
