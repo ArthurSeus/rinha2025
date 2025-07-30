@@ -6,7 +6,7 @@ import (
 )
 
 type MemoryPaymentRepository struct {
-	payments sync.Map // key: CorrelationId, value: *model.Payment
+	payments sync.Map
 }
 
 func NewMemoryPaymentRepository() *MemoryPaymentRepository {
@@ -30,5 +30,5 @@ func (r *MemoryPaymentRepository) GetAll() []*model.Payment {
 }
 
 func (r *MemoryPaymentRepository) Purge() {
-	r.payments = sync.Map{} // simplesmente reseta o mapa
+	r.payments = sync.Map{}
 }
