@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"payment-worker/model"
 	"payment-worker/repository"
 	"sync"
@@ -39,6 +40,8 @@ type PaymentUsecase struct {
 	natsJS nats.JetStreamContext
 	Repo   *repository.MemoryPaymentRepository
 
+	processorURLs map[string]string
+
 	mu               sync.Mutex
 	defaultStatus    processorStatus
 	fallbackStatus   processorStatus
@@ -47,11 +50,20 @@ type PaymentUsecase struct {
 }
 
 func NewPaymentUsecase(natsJS nats.JetStreamContext, numWorkers int, repo *repository.MemoryPaymentRepository) *PaymentUsecase {
+	defaultURL := os.Getenv("PROCESSOR_DEFAULT_URL")
+	fallbackURL := os.Getenv("PROCESSOR_FALLBACK_URL")
+	log.Printf("PROCESSOR_DEFAULT_URL: %s", defaultURL)
+	log.Printf("PROCESSOR_FALLBACK_URL: %s", fallbackURL)
+
 	return &PaymentUsecase{
 		natsJS:           natsJS,
 		processor:        "default",
 		benchmarkWorkers: numWorkers / 3,
 		Repo:             repo,
+		processorURLs: map[string]string{
+			"default":  defaultURL,
+			"fallback": fallbackURL,
+		},
 	}
 }
 
@@ -162,7 +174,10 @@ func (p *PaymentUsecase) sendToProcessor(payment model.PaymentRequestTimed, data
 }
 
 func (p *PaymentUsecase) tryProcessor(processor string, payment model.PaymentRequestTimed, data []byte) error {
-	url := fmt.Sprintf("http://payment-processor-%s:8080/payments", processor)
+	url := p.processorURLs[processor] + "/payments"
+	if url == "" {
+		return fmt.Errorf("processor url not configured for %s", processor)
+	}
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return err
