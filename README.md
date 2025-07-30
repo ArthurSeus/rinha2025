@@ -21,13 +21,16 @@ This repository contains my submission for the Rinha de Backend 2025, implemente
 
 ## Processor Selection Logic
 
-The worker is able to process payments using two "processors": `default` and `fallback`.  
-The choice of which processor to use is **dynamic** and is made based on the following strategy:
+The worker processes payments using two processors: default and fallback.
+The default processor is always preferred. The fallback is only used in two cases:
 
-- The worker continuously benchmarks both processors using a portion of the worker pool.
-- It tracks the latest response time and health (success/failure) of each processor.
-- The worker **prefers** to send payments to the fastest healthy processor. If one fails, it automatically switches to the other.
-- This logic is adaptive: if the `default` processor gets slower or starts failing, requests are routed to the `fallback` processor, and vice versa.
+- If the default processor is failing/unavailable.
+
+- if the default processor is significantly slower (more than 3x slower and over 100ms) than the fallback.
+
+This ensures the system maintains high throughput and availability, but always prioritizes the default processor whenever possible.
+
+The worker continuously benchmarks both processors and dynamically switches between them.
 
 
 ## Components
